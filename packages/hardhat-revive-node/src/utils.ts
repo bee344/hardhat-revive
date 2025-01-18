@@ -13,6 +13,7 @@ import {
     CHOPSTICKS_START_PORT,
     ETH_RPC_ADAPTER_START_PORT,
     POLKAVM_TEST_NODE_NETWORK_NAME,
+    RPC_ENDPOINT_PATH,
 } from './constants';
 import { PolkaVMNodePluginError } from './errors';
 import { CliCommands, CommandArguments, SplitCommands } from './types';
@@ -50,15 +51,15 @@ export function constructCommandArgs(args?: CommandArguments, cliCommands?: CliC
             throw new PolkaVMNodePluginError('Adapter and node cannot share the same port.');
         }
 
-        if (cliCommands?.buildBlockMode) {
+        if (cliCommands.buildBlockMode && cliCommands.fork) {
             nodeCommands.push(`--build-block-mode=${cliCommands.buildBlockMode}`);
         }
 
-        if (cliCommands?.dev) {
+        if (cliCommands.dev) {
             adapterCommands.push('--dev');
+            if (cliCommands.nodeBinaryPath) { nodeCommands.push('--dev') }
         }
     } else if (args && Object.values(args).find((v) => v !== undefined)) {
-        console.log(args)
         if (args.forking) {
             nodeCommands.push(`npx`);
             nodeCommands.push(`@acala-network/chopsticks@latest`);
@@ -71,7 +72,7 @@ export function constructCommandArgs(args?: CommandArguments, cliCommands?: CliC
         }
 
         if (args.nodeCommands?.port) {
-            nodeCommands.push(`--port=${args.nodeCommands.port}`);
+            nodeCommands.push(`--rpc-port=${args.nodeCommands.port}`);
         }
 
         if (args.adapterCommands?.adapterEndpoint) {
@@ -88,6 +89,10 @@ export function constructCommandArgs(args?: CommandArguments, cliCommands?: CliC
 
         if (args.adapterCommands?.buildBlockMode) {
             nodeCommands.push(`--build-block-mode=${args.adapterCommands.buildBlockMode}`);
+        }
+
+        if (args.nodeCommands?.nodeBinaryPath && args.nodeCommands.dev) {
+            nodeCommands.push(`--dev`)
         }
 
         if (args.adapterCommands?.dev) {
@@ -117,75 +122,45 @@ export async function isPortAvailable(port: number): Promise<boolean> {
     return availableIPv4 && availableIPv6;
 }
 
+function setPayload(adapter?: boolean): object {
+
+    return {
+        jsonrpc: '2.0',
+        method: adapter ? RPC_ENDPOINT_PATH : "state_getRuntimeVersion",
+        params: [],
+        id: 1,
+    };
+}
+
 export async function waitForNodeToBeReady(port: number, adapter: boolean = false, maxAttempts: number = 20): Promise<void> {
     const rpcEndpoint = `http://127.0.0.1:${port}`;
 
-    if (adapter) {
-        const payload = {
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-            id: 1,
-        };
+    const payload = setPayload(adapter);
 
-        let attempts = 0;
-        let waitTime = 1000;
-        const backoffFactor = 2;
-        const maxWaitTime = 30000;
+    let attempts = 0;
+    let waitTime = 1000;
+    const backoffFactor = 2;
+    const maxWaitTime = 30000;
 
-        while (attempts < maxAttempts) {
-            try {
-                const response = await axios.post(rpcEndpoint, payload);
+    while (attempts < maxAttempts) {
+        try {
+            const response = await axios.post(rpcEndpoint, payload);
 
-                if (response.data && response.data.result) {
-                    return;
-                }
-            } catch (e: any) {
-                // If it fails, it will just try again
+            if (response.status == 200) {
+                return;
             }
-
-            attempts++;
-
-            await new Promise((r) => setTimeout(r, waitTime));
-
-            waitTime = Math.min(waitTime * backoffFactor, maxWaitTime);
+        } catch (e: any) {
+            // If it fails, it will just try again
         }
 
-        throw new PolkaVMNodePluginError("Server didn't respond after multiple attempts");
-    } else {
-        const payload = {
-            jsonrpc: '2.0',
-            method: 'state_call',
-            params: ["AssetConversionApi_quote_price_tokens_for_exact_tokens", "0x0100000204320504f6faef3001000000000000000000000001"],
-            id: 1,
-        };
+        attempts++;
 
-        let attempts = 0;
-        let waitTime = 1000;
-        const backoffFactor = 2;
-        const maxWaitTime = 30000;
+        await new Promise((r) => setTimeout(r, waitTime));
 
-        while (attempts < maxAttempts) {
-            try {
-                const response = await axios.post(rpcEndpoint, payload);
-
-                if (response.data && response.data.result) {
-                    return;
-                }
-            } catch (e: any) {
-            }
-
-            attempts++;
-
-            await new Promise((r) => setTimeout(r, waitTime));
-
-            waitTime = Math.min(waitTime * backoffFactor, maxWaitTime);
-        }
-
-        throw new PolkaVMNodePluginError("Server didn't respond after multiple attempts");
-
+        waitTime = Math.min(waitTime * backoffFactor, maxWaitTime);
     }
 
+    throw new PolkaVMNodePluginError("Server didn't respond after multiple attempts");
 }
 
 export async function getAvailablePort(startPort: number, maxAttempts: number): Promise<number> {
@@ -224,7 +199,7 @@ export function getNetworkConfig(url: string) {
         timeout: 20000,
         url,
         ethNetwork: NETWORK_ETH.LOCALHOST,
-        chainId: 420420421,
+        chainId: 420420420,
     };
 }
 

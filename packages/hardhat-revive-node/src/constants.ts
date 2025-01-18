@@ -3,7 +3,6 @@ export const PLUGIN_NAME = 'hardhat-revive-node';
 export const TASK_NODE_POLKAVM = 'node-polkavm';
 export const TASK_NODE_POLKAVM_CREATE_SERVER = 'node-polkavm:create-server';
 export const TASK_NODE_POLKAVM_CREATE_ETH_ADAPTER = 'node-polkavm:create-eth-adapter';
-export const TASK_NODE_POLKAVM_DOWNLOAD_BINARY = 'node-polkavm:download-binary';
 export const TASK_RUN_POLKAVM_NODE_IN_SEPARATE_PROCESS = 'node-polkavm:run-in-separate-process';
 
 export const PROCESS_TERMINATION_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGKILL'];
@@ -14,7 +13,7 @@ export const MAX_PORT_ATTEMPTS = 10;
 export const PORT_CHECK_DELAY = 500;
 export const RPC_ENDPOINT_PATH = 'eth_chainId';
 
-export const POLKAVM_TEST_NODE_NETWORK_NAME = 'KitchensinkNode';
+export const POLKAVM_TEST_NODE_NETWORK_NAME = 'hardhat';
 
 export const BASE_URL = `http://127.0.0.1`;
 export const NETWORK_ACCOUNTS = {
